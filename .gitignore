@@ -1,0 +1,32 @@
+# =========================================================================
+# GITIGNORE UNTUK TUGAS KULIAH JAVA (APACHE NETBEANS)
+# Dibuat oleh: Dosen Pemrograman Java
+# =========================================================================
+
+# 1. Mengabaikan file hasil kompilasi (Compiled source code)
+*.class
+*.jar
+*.war
+*.ear
+
+# 2. Mengabaikan folder output bawaan NetBeans (Hasil Build/Compile)
+/build/
+/dist/
+
+# 3. Mengabaikan konfigurasi lokal mahasiswa (SANGAT PENTING)
+# File di dalam folder private ini berisi path/jalur direktori laptop mahasiswa.
+# Jika tidak diabaikan, proyek akan error/broken saat dibuka di laptop Dosen.
+/nbproject/private/
+
+# 4. Mengabaikan file log pengetesan (jika menggunakan JUnit)
+/nbproject/junit*.properties
+
+# 5. Mengabaikan folder build jika proyek berbasis Maven/Gradle (NetBeans Modern)
+target/
+.gradle/
+build/
+
+# 6. Mengabaikan file sampah sistem operasi (Opsional)
+Thumbs.db
+.DS_Store
+
