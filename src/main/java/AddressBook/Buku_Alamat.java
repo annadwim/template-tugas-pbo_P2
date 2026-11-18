@@ -9,18 +9,32 @@ package AddressBook;
  * @author Asus
  */
 public class Buku_Alamat {
+    private int id_kontak;
     private String nama;
     private String alamat;
     private String nomorTelepon;
     private String email;
 
     public Buku_Alamat() {
+       
         this.nama = "";
         this.alamat = "";
         this.nomorTelepon = "";
         this.email = "";
     }
 
+    public Buku_Alamat(int id_kontak, String nama, String alamat, String nomorTelepon, String email) {
+        this.id_kontak = id_kontak;
+        this.nama = nama;
+        this.alamat = alamat;
+        this.nomorTelepon = nomorTelepon;
+        this.email = email;
+    }
+
+    public int getId_kontak() {
+        return id_kontak;
+    }    
+    
     public String getNama() {
         return nama;
     }
@@ -37,6 +51,10 @@ public class Buku_Alamat {
         return email;
     }
 
+    public void setId_kontak(int id_kontak) {
+        this.id_kontak = id_kontak;
+    }
+        
     public void setNama(String nama) {
         this.nama = nama;
     }
@@ -60,7 +78,7 @@ public class Buku_Alamat {
         this.email = email;
     }
 
-    public void deleteData() {
+ /*   public void deleteData() {
         setNama("- (Data Dihapus)");
         setAlamat("-");
         setNomorTelepon("-");
@@ -96,4 +114,5 @@ public class Buku_Alamat {
             System.out.println();
         }
     }
+    */
 }

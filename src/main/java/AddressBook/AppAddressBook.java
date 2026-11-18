@@ -15,13 +15,39 @@ import javax.swing.table.DefaultTableModel;
 public class AppAddressBook extends javax.swing.JFrame {
     
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(AppAddressBook.class.getName());
-    private final ArrayList<Buku_Alamat> listAlamat = new ArrayList<>();
+    private final DAOAddressBook dao = new DAOAddressBook();
+    private Buku_Alamat[] daftarAlamat;
     private DefaultTableModel modelTabel;
+    private boolean isUpdating = false;
+    private int idKontakEdit = -1;
     /**
      * Creates new form AppAddressBook
      */
     public AppAddressBook() {
         initComponents();
+        tampilDataTabel();
+        
+        // Aktifkan tombol Update & Delete saat salah satu baris dipilih
+        jTableBukuAlamat.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int baris = jTableBukuAlamat.getSelectedRow();
+                boolean barisDipilih = (baris != -1);
+                jButtonUpdate.setEnabled(barisDipilih);
+                jButtonDelete.setEnabled(barisDipilih);
+
+                // Bersihkan form jika berpindah baris saat mode edit belum disimpan
+                if (isUpdating) {
+                    jTextFieldNama.setText("");
+                    jTextAreaAlamat.setText("");
+                    jTextFieldNoTelp.setText("");
+                    jTextFieldEmail.setText("");
+                    jButtonSimpan.setEnabled(true);
+                    isUpdating = false;
+                    idKontakEdit = -1;
+                }
+            }
+        });
+        jMenuItem1.addActionListener(e -> System.exit(0));
     }
 
     public void tampilDataTabel()
@@ -31,16 +57,20 @@ public class AppAddressBook extends javax.swing.JFrame {
         }
 
         modelTabel.setRowCount(0);
-        for (int i = 0; i < listAlamat.size(); i++) {
-            Buku_Alamat data = listAlamat.get(i);
-            Object[] row = {
-                i + 1,
-                data.getNama(),
-                data.getAlamat(),
-                data.getNomorTelepon(),
-                data.getEmail()
-            };
-            modelTabel.addRow(row);
+        daftarAlamat = dao.getTableAddressBook();
+        
+        if (daftarAlamat != null) {
+            for (int i = 0; i < daftarAlamat.length; i++) {
+                Buku_Alamat data = daftarAlamat[i];
+                Object[] row = {
+                    i + 1,
+                    data.getNama(),
+                    data.getAlamat(),
+                    data.getNomorTelepon(),
+                    data.getEmail()
+                };
+                modelTabel.addRow(row);
+            }
         }
     }
     
@@ -50,6 +80,34 @@ public class AppAddressBook extends javax.swing.JFrame {
         jTextFieldNoTelp.setText("");
         jTextFieldEmail.setText("");
         jTableBukuAlamat.clearSelection();
+        //jButtonSimpan.setEnabled(true);
+        jButtonUpdate.setEnabled(false);
+        jButtonDelete.setEnabled(false);
+        isUpdating = false;
+        idKontakEdit = -1;
+        jTextFieldNama.requestFocus();
+    }
+    
+    private void prosesUpdate() {
+        String nama = jTextFieldNama.getText().trim();
+        String alamat = jTextAreaAlamat.getText().trim();
+        String noTelp = jTextFieldNoTelp.getText().trim();
+        String email = jTextFieldEmail.getText().trim();
+
+        if (nama.isEmpty() || alamat.isEmpty() || noTelp.isEmpty() || email.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Data wajib diisi!", "Peringatan", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Buku_Alamat dataUpdate = new Buku_Alamat(idKontakEdit, nama, alamat, noTelp, email);
+
+        if (dao.UpdateAkunData(dataUpdate)) {
+            tampilDataTabel();
+            resetForm();
+            JOptionPane.showMessageDialog(this, "Data berhasil diperbarui!");
+        } else {
+            JOptionPane.showMessageDialog(this, "Gagal memperbarui data!", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
     /**
      * This method is called from within the constructor to initialize the form.
@@ -104,26 +162,39 @@ public class AppAddressBook extends javax.swing.JFrame {
 
         jTableBukuAlamat.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
-                {null, null, null, null},
-                {null, null, null, null},
-                {null, null, null, null},
-                {null, null, null, null}
+                {null, null, null, null, null},
+                {null, null, null, null, null},
+                {null, null, null, null, null},
+                {null, null, null, null, null}
             },
             new String [] {
-                "Nama", "Alamat", "Nomor Telepon", "Email"
+                "No", "Nama", "Alamat", "Nomor Telepon", "Email"
             }
-        ));
+        ) {
+            boolean[] canEdit = new boolean [] {
+                false, false, false, false, false
+            };
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        jTableBukuAlamat.getTableHeader().setReorderingAllowed(false);
         jScrollPane2.setViewportView(jTableBukuAlamat);
         if (jTableBukuAlamat.getColumnModel().getColumnCount() > 0) {
-            jTableBukuAlamat.getColumnModel().getColumn(1).setPreferredWidth(200);
+            jTableBukuAlamat.getColumnModel().getColumn(0).setPreferredWidth(10);
+            jTableBukuAlamat.getColumnModel().getColumn(2).setPreferredWidth(200);
         }
 
         jLabel5.setText("Aksi :");
 
         jButtonUpdate.setText("Update");
+        jButtonUpdate.setEnabled(false);
         jButtonUpdate.addActionListener(this::jButtonUpdateActionPerformed);
 
         jButtonDelete.setText("Delete");
+        jButtonDelete.setEnabled(false);
+        jButtonDelete.addActionListener(this::jButtonDeleteActionPerformed);
 
         jMenuExit.setText("File");
 
@@ -208,10 +279,39 @@ public class AppAddressBook extends javax.swing.JFrame {
 
     private void jButtonUpdateActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButtonUpdateActionPerformed
         // TODO add your handling code here:
+        if (!isUpdating) {
+            // Tahap 1: Munculkan data terpilih ke form saat tombol Update diklik
+            int baris = jTableBukuAlamat.getSelectedRow();
+            if (baris == -1) {
+                JOptionPane.showMessageDialog(this, "Pilih data pada tabel terlebih dahulu!", "Peringatan", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Buku_Alamat data = daftarAlamat[baris];
+            idKontakEdit = data.getId_kontak();
+            jTextFieldNama.setText(data.getNama());
+            jTextAreaAlamat.setText(data.getAlamat());
+            jTextFieldNoTelp.setText(data.getNomorTelepon());
+            jTextFieldEmail.setText(data.getEmail());
+
+            isUpdating = true;
+            jButtonUpdate.setEnabled(false);
+            jButtonDelete.setEnabled(false);
+            jTextFieldNama.requestFocus();
+        } else {
+            // Tahap 2: Simpan perubahan data dari form ke database
+            prosesUpdate();
+        }
     }//GEN-LAST:event_jButtonUpdateActionPerformed
 
     private void jButtonSimpanActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButtonSimpanActionPerformed
         // TODO add your handling code here:
+        // Jika sedang dalam mode Update, jalankan update (bukan insert baru)
+        if (isUpdating) {
+            prosesUpdate();
+            return;
+        }
+        
         String nama = jTextFieldNama.getText().trim();
         String alamat = jTextAreaAlamat.getText().trim();
         String noTelp = jTextFieldNoTelp.getText().trim();
@@ -226,20 +326,48 @@ public class AppAddressBook extends javax.swing.JFrame {
         Buku_Alamat dataBaru = new Buku_Alamat();
         dataBaru.insertData(nama, alamat, noTelp, email);
 
-        // Menambahkan ke list/array
-        listAlamat.add(dataBaru);        
-
-        // Perbarui tabel dan kosongkan form
-        tampilDataTabel();
-        resetForm();
-        JOptionPane.showMessageDialog(this, "Data berhasil disimpan!");   
-        
+        // Simpan data ke database, Perbarui tabel, dan kosongkan form
+        if (dao.InsertAddrsBookData(dataBaru)) {
+            tampilDataTabel();
+            resetForm();
+            JOptionPane.showMessageDialog(this, "Data berhasil disimpan ke database!");
+        } else {
+            JOptionPane.showMessageDialog(this, "Gagal menyimpan data!", "Error", JOptionPane.ERROR_MESSAGE);
+        }        
     }//GEN-LAST:event_jButtonSimpanActionPerformed
 
     private void jButtonResetActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButtonResetActionPerformed
         // TODO add your handling code here:
         resetForm();
     }//GEN-LAST:event_jButtonResetActionPerformed
+
+    private void jButtonDeleteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButtonDeleteActionPerformed
+        // TODO add your handling code here:
+        int baris = jTableBukuAlamat.getSelectedRow();
+        if (baris == -1 || daftarAlamat == null || baris >= daftarAlamat.length) {
+            JOptionPane.showMessageDialog(this, "Pilih data pada tabel yang ingin dihapus!", "Peringatan", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Buku_Alamat dataDipilih = daftarAlamat[baris];
+        int konfirmasi = JOptionPane.showConfirmDialog(
+                this,
+                "Yakin ingin menghapus kontak \"" + dataDipilih.getNama() + "\"?",
+                "Konfirmasi Hapus",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
+
+        if (konfirmasi == JOptionPane.YES_OPTION) {
+            if (dao.DeleteAkunData(dataDipilih.getId_kontak())) {
+                tampilDataTabel();
+                resetForm(); // Mengosongkan form, menghapus seleksi tabel, dan menonaktifkan tombol Update & Delete
+                JOptionPane.showMessageDialog(this, "Data berhasil dihapus!");
+            } else {
+                JOptionPane.showMessageDialog(this, "Gagal menghapus data dari database!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }        
+    }//GEN-LAST:event_jButtonDeleteActionPerformed
 
     /**
      * @param args the command line arguments
